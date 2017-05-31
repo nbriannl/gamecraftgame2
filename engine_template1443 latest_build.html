@@ -1,0 +1,259 @@
+<html>
+<head></head>
+
+<style>
+canvas {
+    border:1px solid #d3d3d3;
+    background-color: #f1f1f1;
+}
+</style>
+
+<body onload="startGame()">
+
+<script>
+
+var score;
+var scoremulti;
+var click;
+var temp = -1;
+var reset_count;
+var circles = [];
+var prev_circle;
+
+var canvas_width = 800;
+var canvas_height = 600;
+
+var display_text = undefined;
+var display_count = 0;
+
+var bgm = new Audio("bgm.mp3");
+var circlespawnsound = new Audio("circlespawn.wav");
+bgm.loop = true;
+bgm.play();
+
+document.onclick = clickHandler;
+
+function clickHandler() {
+    clicks++;
+    checkCloseEnough();
+    score += scoremulti ;
+    prev_circle = getLastCircle();
+    circles.push(new Circle());
+    checkReset();
+}
+
+/* Constructors */
+
+function draw_text() {
+    if (display_count > 0) {
+        var ctx = gameArea.context;
+        ctx.font = "80px Consolas";
+        ctx.textAlign = 'center';
+        ctx.fillStyle = "Black";
+        ctx.strokeStyle = "White";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillText(display_text, canvas_width/2, canvas_height/2);
+        display_count --;
+    }
+}
+
+function Circle() {
+    this.x = canvas_width / 2;
+    this.y = canvas_height / 2;
+    this.radius = 0;
+    this.color = getColour();
+}
+
+Circle.prototype.grow = function() {
+    var rate = 3 + clicks * 2;
+    this.radius += rate;
+}
+
+Circle.prototype.draw = function() {
+    var ctx = gameArea.context;
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#003300';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+    ctx.stroke();
+}
+
+Circle.prototype.fill = function() {
+    var ctx = gameArea.context;
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+    ctx.fill();
+}
+
+/*function getColour ( n ) {
+    var colours = [ "#44af69", "#f8333c", "#fcab10", "#2b9eb3", "#dbd5b5"];
+    var index = n % 5;
+
+    return colours[index]
+}*/
+
+function getColour () {
+    var colours = [ "#44af69", "#f8333c", "#fcab10", "#2b9eb3", "#e4dfda", "#d4b483", "#c1666b", "#b2d3a8", "#ede5a6"];
+    var index;
+    do{
+        index = Math.floor(Math.random()*9) % 9;
+    }
+    while (temp == index);
+    temp = index;
+
+    console.log(index);
+
+    return colours[index];
+}
+
+
+function startGame() {
+    score = 0;
+    scoremulti = 1;
+    reset_count = 0;
+    clicks = 0;
+    circles.push(makeStartingCircle());
+    prev_circle = circles[0];
+    circles.push(new Circle()); 
+    gameArea.start();
+}
+
+function getLastCircle() {
+    //console.log(circles);
+    return circles[circles.length - 1];
+}
+
+function makeStartingCircle() {
+    var new_circle = new Circle();
+    new_circle.radius = Math.min(canvas_width, canvas_height) / 2;
+    return new_circle;
+}
+
+
+var gameArea = {
+    canvas : document.createElement("canvas"),
+    start : function() {
+        this.canvas.width = canvas_width;
+        this.canvas.height = canvas_height;
+        this.context = this.canvas.getContext("2d");
+        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+        this.frameNo = 0;
+        this.interval = setInterval(updateGameArea, 50);
+        },
+    clear : function() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+}
+
+function checkCloseEnough() {
+    var dist = prev_circle.radius - getLastCircle().radius;
+    if (dist < 5) {
+        doPerfect();
+    } else if (dist < 15) {
+        doClose();
+    }
+}
+
+function doPerfect() {
+    set_text("Close Enough!");
+    reset_count = 5;
+    scoremulti++; 
+}
+
+function doClose() {
+    set_text("Almost!");
+    reset_count++;
+}
+
+function checkReset() {
+    if (reset_count >= 5) {
+        set_text("Close Enough!");
+        circles = [];
+        circles.push(makeStartingCircle());
+        prev_circle = circles[0];
+        circles.push(new Circle()); 
+        reset_count = 0;
+    }
+}
+
+function updateGameArea() {
+    if (checkGameOver()) {
+        clearInterval(gameArea.interval);
+        displayGameover();
+    }
+    else 
+        displayGameplay();
+}
+
+function displayGameplay() {
+    gameArea.clear();
+    updateCircles();
+    draw_text();
+    updateScore();
+}
+
+function displayGameover() {
+    gameArea.clear();
+    
+    ctx = gameArea.context;
+    ctx.font ="100px Verdana"; 
+    ctx.fillStyle = getColour();
+    ctx.fillText("Game Over!", canvas_width/2, canvas_height/2 - 65);
+    ctx.font ="60px Verdana"; 
+    ctx.fillStyle = getColour();
+    ctx.fillText("Score: " + score, canvas_width/2, canvas_height/2 + 45);
+    if (scoremulti > 1){ 
+        ctx.font ="40px Verdana"; 
+        ctx.fillStyle = getColour();
+        ctx.fillText("Number of Close Enoughs: " + (scoremulti-1)  , canvas_width/2, canvas_height/2 + 105);
+    } 
+    else {        
+        ctx.font ="25px Verdana"; 
+        ctx.fillStyle = getColour();
+        ctx.fillText("Git Gud Brah. Not even close.", canvas_width/2, canvas_height/2 + 105);
+    }
+}
+
+
+function set_text(text) {
+    display_text = text;
+    display_count = 8;
+}
+
+
+function updateCircles() {
+    getLastCircle().grow();
+    drawCircles();
+    
+}
+
+function drawCircles() {
+    for (i in circles) {
+        var c = circles[i];
+        c.draw();
+        c.fill();
+    }
+    getLastCircle().fill();
+}
+
+function updateScore() {
+    ctx = gameArea.context;
+
+    ctx.font = "32px Consolas";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.fillText(score, 400, 305);
+}
+
+function checkGameOver() {
+    return (getLastCircle().radius >= prev_circle.radius); 
+    
+}
+
+
+</script>    
+
+</body>
+</html>
